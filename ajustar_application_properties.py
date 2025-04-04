@@ -5,7 +5,8 @@ from pathlib import Path
 from xml.etree import ElementTree as ET
  
 PROPIEDADES_FIJAS_TEMPLATE = """
-quarkus.http.port=8484
+quarkus.http.host=localhost
+quarkus.http.port=8080
 quarkus.swagger-ui.always-include=true
 quarkus.swagger-ui.path=/swagger-ui
  

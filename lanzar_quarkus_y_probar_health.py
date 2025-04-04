@@ -25,20 +25,15 @@ def extraer_rutas_healthcheck(path_proyecto):
             with open(archivo, "r", encoding="utf-8") as f:
                 contenido = f.read()
 
-            if '@Path("/health")' not in contenido:
+            # Buscar base path definido en rest(...)
+            match = re.search(r'rest\s*\(\s*"([^"]+)"\s*\)', contenido)
+            if not match:
                 continue
+            base_path = match.group(1).rstrip("/")
 
-            paths = re.findall(r'@Path\("([^"]+)"\)', contenido)
-            if not paths:
-                continue
-
-            paths = [p.strip("/") for p in paths if p.strip()]
-            if not paths:
-                continue
-
-            base_path = "/".join(paths[:-1])  # todos menos /health
-            full_path = f"/{base_path}/health"
-            rutas.append(full_path)
+            # Buscar si contiene .get("/health")
+            if '.get("/health")' in contenido:
+                rutas.append(f"{base_path}/health")
 
         except Exception as e:
             print(f"[WARN] No se pudo analizar {archivo}: {e}")

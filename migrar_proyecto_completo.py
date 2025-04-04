@@ -150,7 +150,7 @@ if __name__ == "__main__":
         # Paso 10: ejecutar healthcheck solo si compila correctamente
         if "compilación Maven (fallida)" not in errores and "compilación Maven (excepción)" not in errores:
             validar_healthcheck(str(ruta_out))
-
+    
     if errores:
         print(f"\n[ERROR] Migración con errores para: {nombre_proyecto}")
         print("Resumen de errores:")

@@ -3,9 +3,7 @@ import re
 import sys
 from pathlib import Path
 
-from modules.rest_configuration_generator import generar_configuracion_rest
 from modules.rest_endpoint_parser import parse_endpoints_from_class
-
 
 # Plantilla base para el archivo RouteBuilder generado
 TEMPLATE_ROUTE_BUILDER = '''\
@@ -24,8 +22,6 @@ public class {class_name} extends RouteBuilder {{
     @Override
     public void configure() throws Exception {{
 
-{rest_config}
-
         rest("{base_path}")
         .tag("{tag}")
         .description("{description}")
@@ -34,18 +30,6 @@ public class {class_name} extends RouteBuilder {{
     }}
 }}
 '''
-
-def leer_puerto_desde_properties(path_proyecto):
-    properties_path = Path(path_proyecto) / "src" / "main" / "resources" / "application.properties"
-    if properties_path.exists():
-        with open(properties_path, encoding="utf-8") as f:
-            for line in f:
-                if "quarkus.http.port" in line and not line.strip().startswith("#"):
-                    try:
-                        return int(line.split("=")[1].strip())
-                    except:
-                        break
-    return 8080  # valor por defecto
 
 def extraer_info_api(content: str, default_tag: str):
     api_match = re.search(r'@Api\s*\(.*?value\s*=\s*"([^"]+)".*?tags\s*=\s*\{\s*"([^"]+)"\s*}', content, re.DOTALL)
@@ -82,33 +66,25 @@ def procesar_archivo_service(path_file: Path, ruta_proyecto: Path):
     imports = sorted(set(re.findall(r'import\s+[\w\.]+;', content)))
     imports = "\n".join(imp for imp in imports if package not in imp)
 
-    # 3. Puerto dinámico desde properties
-    puerto = leer_puerto_desde_properties(ruta_proyecto)
-
-    # 4. Rest Configuration block
-    rest_config = generar_configuracion_rest(ruta_proyecto, tag)
-
-    # 5. Endpoints block
+    # 3. Endpoints block
     rest_endpoints = parse_endpoints_from_class(content)
 
-    # 6. Composición final
+    # 4. Composición final
     resultado = TEMPLATE_ROUTE_BUILDER.format(
         package=package,
         imports=imports,
         class_name=class_name,
-        rest_config=rest_config,
         base_path=base_path,
         tag=tag,
         description=description,
         rest_endpoints=rest_endpoints
     )
 
-    destino = path_file.with_name(path_file.name.replace("Service", "RouteBuilder"))
-    with open(destino, "w", encoding="utf-8") as f:
+    with open(path_file, "w", encoding="utf-8") as f:
         f.write(resultado)
 
-    print(f"[OK] Generado nuevo RouteBuilder en {destino}")
-    path_file.unlink()
+    print(f"[OK] Actualizado contenido de {path_file.name}")
+    
 
 def procesar_proyecto(ruta_proyecto):
     ruta = Path(ruta_proyecto)

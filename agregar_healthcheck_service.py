@@ -1,72 +1,55 @@
+# agregar_healthcheck_service.py
 import sys
-import re
 from pathlib import Path
+import re
+
+BLOQUE_HEALTH_TEMPLATE = '''
+                .get("/health")
+                .description("Health check del servicio.")
+                .routeId("health-{route_name}")
+                .to("direct:health{route_pascal}")'''  # Aquí redirigimos a una ruta camel
 
 def agregar_healthcheck(path_proyecto):
     base = Path(path_proyecto)
-    archivos = list(base.rglob("*.java"))
+    archivos = list(base.rglob("*Service.java"))
 
     for archivo in archivos:
         try:
             with open(archivo, "r", encoding="utf-8") as f:
                 contenido = f.read()
 
-            # Verifica si es un servicio REST
-            if "@Path" not in contenido:
+            if 'extends RouteBuilder' not in contenido or 'rest(' not in contenido:
                 continue
 
-            # Verifica si ya tiene health
-            if re.search(r'@Path\("/health"\)', contenido):
+            if 'get("/health")' in contenido:
                 continue
 
-            # Encuentra el último cierre de clase fuera de otros métodos
-            lineas = contenido.splitlines()
-            apertura = 0
-            ultima_llave_clase = -1
-            for i, linea in enumerate(lineas):
-                apertura += linea.count("{") - linea.count("}")
-                if apertura == 0:
-                    ultima_llave_clase = i
+            class_name = archivo.stem  # ej: OpportunityService
+            route_name = class_name.replace("Service", "").lower()
+            route_pascal = class_name.replace("Service", "")  # ej: Opportunity
 
-            if ultima_llave_clase == -1:
-                print(f"[WARN] Clase sin cierre válido: {archivo}")
-                continue
-
-            metodo_health = (
-                "    @GET\n"
-                "    @Path(\"/health\")\n"
-                "    @Produces(MediaType.TEXT_PLAIN)\n"
-                "    public Response health() {\n"
-                "        return Response.ok(\"OK\").build();\n"
-                "    }\n\n"
+            bloque_health = BLOQUE_HEALTH_TEMPLATE.format(
+                route_name=route_name,
+                route_pascal=route_pascal
             )
 
-            # Verifica si tiene los imports necesarios, si no, los agrega
-            nuevos_imports = ""
-            if "import jakarta.ws.rs.GET;" not in contenido:
-                nuevos_imports += "import jakarta.ws.rs.GET;\n"
-            if "import jakarta.ws.rs.Path;" not in contenido:
-                nuevos_imports += "import jakarta.ws.rs.Path;\n"
-            if "import jakarta.ws.rs.Produces;" not in contenido:
-                nuevos_imports += "import jakarta.ws.rs.Produces;\n"
-            if "import jakarta.ws.rs.core.MediaType;" not in contenido:
-                nuevos_imports += "import jakarta.ws.rs.core.MediaType;\n"
-            if "import jakarta.ws.rs.core.Response;" not in contenido:
-                nuevos_imports += "import jakarta.ws.rs.core.Response;\n"
+            match = re.search(r'(rest\([^\n]+)(.*?)(\n\s*;)', contenido, flags=re.DOTALL)
+            if not match:
+                print(f"[WARN] No se encontró bloque rest(...) en {archivo.name}")
+                continue
 
-            if nuevos_imports:
-                contenido = re.sub(r'(package .*?;\s+)', r"\1" + nuevos_imports, contenido, count=1)
+            bloque_rest = match.group(0)
+            nuevo_bloque_rest = bloque_rest.rstrip(";\n") + bloque_health + "\n        ;"
 
-            # Inserta el método justo antes del cierre final de la clase
-            lineas.insert(ultima_llave_clase, metodo_health)
+            nuevo_contenido = contenido.replace(bloque_rest, nuevo_bloque_rest)
 
             with open(archivo, "w", encoding="utf-8") as f:
-                f.write("\n".join(lineas))
+                f.write(nuevo_contenido)
 
-            print(f"[OK] Método health agregado en: {archivo}")
+            print(f"[OK] Health agregado a {archivo.name}")
 
         except Exception as e:
-            print(f"[ERROR] No se pudo modificar {archivo}: {e}")
+            print(f"[ERROR] {archivo}: {e}")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

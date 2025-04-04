@@ -75,7 +75,7 @@ def ejecutar_para_todos(in_path, out_path, pom_template_path, global_props_path,
 
             proceso.wait()
             joined_output = "".join(resultado)
-
+            print(f"[KHAAA] joined_output {joined_output} gaaaaaaaaa")
             if "[OK] Migración completada para:" in joined_output:
                 exitosos += 1
             else:
