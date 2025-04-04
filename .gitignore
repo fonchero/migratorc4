@@ -1,0 +1,22 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.log
+
+# Maven output
+target/
+
+# Java IDEs
+*.iml
+.idea/
+*.class
+
+# VSCode config
+.vscode/
+
+# Environment files
+.env
+
+# OS files
+.DS_Store
+Thumbs.db
